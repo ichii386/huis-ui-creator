@@ -32,13 +32,18 @@ var {app, BrowserWindow, crashReporter} = require('electron');
 // JavaScript のオブジェクトが GC されたときにウィンドウが閉じてしまうため
 var mainWindow = null;
 
-var shouldQuit = app.makeSingleInstance(function(argv, workingDirectory) {
-    if(mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-});
+// Electron 4 で app.makeSingleInstance は削除されたため requestSingleInstanceLock に置き換え
+var gotTheLock = app.requestSingleInstanceLock();
 
-if (shouldQuit) {
+if (!gotTheLock) {
     app.quit();
+} else {
+    app.on('second-instance', function(event, argv, workingDirectory) {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
 }
 
 // すべてのウィンドウが閉じられたら終了
@@ -57,7 +62,15 @@ app.on('ready', function() {
         //minWidth :  1280,
         //minHeight :768,
         icon:  __dirname + '/app/huis-favicon.png',
-        title: 'HUIS UI CREATOR'
+        title: 'HUIS UI CREATOR',
+        // モダンな Electron では nodeIntegration/remote がデフォルト無効になったため、
+        // 既存のレンダラーコード (require("electron").remote, require("fs-extra") 等) を
+        // そのまま動かすために明示的に有効化する
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            enableRemoteModule: true
+        }
     });
 
     // アプリの index.html をロードする

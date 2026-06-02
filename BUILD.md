@@ -71,6 +71,46 @@ cp -r node_modules www/
 
 ## 8. パッケージ化
 
+### Apple Silicon (arm64) ネイティブビルド ※推奨
+
+Electron 1.4.10 は Intel (x64) 専用で、Apple Silicon Mac では Rosetta 2 経由でしか動きません
+(将来の macOS で Rosetta が廃止されると動作しなくなります)。
+ネイティブ arm64 で動かすため、Electron をネイティブ arm64 ビルドが存在する **13.6.9** に上げます。
+
+> Electron 11〜13 は旧来の `remote` モジュールを内蔵しているため、`main.js` に
+> `webPreferences` (`nodeIntegration` / `contextIsolation:false` / `enableRemoteModule`) を
+> 追加するだけで、レンダラー側の既存コード (`require("electron").remote`, `require("fs-extra")` 等) は
+> 無修正で動作します。`main.js` の `app.makeSingleInstance` は Electron 4 で削除されたため
+> `app.requestSingleInstanceLock` に置き換え済みです。
+
+パッケージ化には Node 16 以上が必要です (grunt ビルドの Node 6 とは別に用意します)。
+
+```bash
+# パッケージ化専用にモダンな Node を用意 (TS ビルドの Node 6 とは別)
+nodenv install 22.22.3
+
+cd www
+NODENV_VERSION=22.22.3 npx @electron/packager@18.3.6 . HuisUICreator \
+  --platform=darwin --arch=arm64 --electron-version=13.6.9 \
+  --overwrite \
+  --ignore="node_modules/(grunt.*|electron-rebuild)" \
+  --ignore="\.git" \
+  --ignore="Service References" \
+  --ignore="docs" \
+  --ignore="obj" \
+  --ignore="tests/.*" \
+  --ignore="platforms" \
+  --ignore="-x64\$" \
+  --ignore="-ia32\$" \
+  --ignore="-arm64\$"
+```
+
+成功すると `www/HuisUICreator-darwin-arm64/HuisUICreator.app` が生成されます。
+`file HuisUICreator.app/Contents/MacOS/HuisUICreator` で `arm64` と表示されれば
+ネイティブビルド成功です。
+
+### Intel (x64) ビルド ※旧来 / Rosetta 動作
+
 ```bash
 cd www
 electron-packager . HuisUICreator \
